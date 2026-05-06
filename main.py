@@ -172,8 +172,8 @@ def main():
 
     parser.add_argument(
         "--model",
-        default="mistral",
-        help="Ollama model name (default: mistral)"
+        default="qwen2.5-coder",
+        help="Ollama model name (default: qwen2.5-coder)"
     )
 
     parser.add_argument(
