@@ -56,7 +56,7 @@ class OllamaClient:
                 "stream": False,
                 "options": {
                     "temperature": 0.1,
-                    "mun_predict": 250
+                    "num_predict": 250
                 }
             },
             timeout=90,
