@@ -90,6 +90,7 @@ class DocstringAdder(ast.NodeTransformer):
         self.llm_client = llm_client
         self.overwrite_existing = overwrite_existing
         self.skip_private = skip_private
+        self.changed = False
 
     def process_function(self, node):
 
@@ -110,6 +111,7 @@ class DocstringAdder(ast.NodeTransformer):
                 0,
                 ast.Expr(value=ast.Constant(value=docstring))
             )
+            self.changed = True
 
         except Exception as e:
             print(f"Failed on function '{node.name}': {e}")
@@ -134,14 +136,21 @@ def process_file(
 
         tree = ast.parse(source)
 
+        transformer.changed = False
         updated_tree = transformer.visit(tree)
 
-        filepath.write_text(
-            ast.unparse(updated_tree),
-            encoding="utf-8"
-        )
+        if transformer.changed:
+            ast.fix_missing_locations(updated_tree)
 
-        print(f"Processed: {filepath}")
+            filepath.write_text(
+                ast.unparse(updated_tree),
+                encoding="utf-8"
+            )
+
+            print(f"Updated: {filepath}")
+
+        else:
+            print(f"Skipped unchanged file: {filepath}")
 
     except SyntaxError:
         print(f"Skipping invalid Python file: {filepath}")
