@@ -1,6 +1,6 @@
 # pydocgen
 
-A command-line tool that walks through a Python project and automatically generates Google-style docstrings for every function and method, using a locally running LLM via [Ollama](https://ollama.com).
+A command-line tool that walks through a Python project and automatically generates Google-style docstrings for every function and method. It supports multiple LLM providers including [Ollama](https://ollama.com) (default), OpenAI, and Groq.
 
 No data leaves your machine. No API keys. No rate limits.
 
@@ -28,9 +28,11 @@ Skips private methods by default, and will not overwrite existing docstrings unl
 
 Python 3.12 or higher is recommended. The tool relies on `ast.unparse`, which was introduced in Python 3.9, so that is the minimum.
 
-### Ollama
+### LLM Providers
 
-You need Ollama installed and running locally before using this tool.
+#### Ollama (Default, Local)
+
+You need Ollama installed and running locally before using this tool with the default provider.
 
 - Download Ollama: https://ollama.com/download
 - Browse available models: https://ollama.com/library
@@ -47,6 +49,26 @@ Verify Ollama is running before you proceed:
 
 ```bash
 curl http://localhost:11434
+```
+
+#### OpenAI (Cloud)
+
+To use OpenAI, you need an API key and the `openai` Python package installed.
+
+```bash
+pip install "pydocgen[openai]"
+# or with uv
+uv add "pydocgen[openai]"
+```
+
+#### Groq (Cloud)
+
+To use Groq, you need an API key and the `groq` Python package installed.
+
+```bash
+pip install "pydocgen[groq]"
+# or with uv
+uv add "pydocgen[groq]"
 ```
 
 ---
@@ -109,8 +131,10 @@ This will scan every `.py` file under the given path, skip private functions (th
 
 ```
 --path             Path to the root of the Python project (required)
---model            Ollama model to use (default: qwen2.5-coder)
---url              Ollama API base URL (default: http://localhost:11434)
+--provider         LLM provider to use: 'ollama', 'openai', or 'groq' (default: ollama)
+--model            Model name (default for ollama: qwen2.5-coder, default for openai: gpt-4o)
+--url              API URL (default for ollama: http://localhost:11434)
+--api-key          API key for cloud providers. Can also use environment variables like OPENAI_API_KEY.
 --overwrite        Overwrite docstrings that already exist
 --include-private  Also generate docstrings for private functions and methods
 ```
@@ -139,6 +163,20 @@ Point to a remote or non-default Ollama instance:
 
 ```bash
 python main.py --path ./myproject --url http://192.168.1.10:11434
+```
+
+Use OpenAI as the provider:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+python main.py --path ./myproject --provider openai --model gpt-4o
+```
+
+Use Groq as the provider:
+
+```bash
+export GROQ_API_KEY="gsk_..."
+python main.py --path ./myproject --provider groq --model llama3-8b-8192
 ```
 
 ---

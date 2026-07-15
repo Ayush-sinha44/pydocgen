@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 import re
 
-import requests
+from clients import LLMClient, OllamaClient, OpenAIClient, GroqClient
 
 
 EXCLUDED_DIRS = {
@@ -18,72 +18,11 @@ EXCLUDED_DIRS = {
 }
 
 
-class OllamaClient:
-    def __init__(self, model: str, url: str):
-        self.model = model
-        self.url = url
-
-    def generate_docstring(self, function_code: str) -> str:
-        SYSTEM_PROMPT = f"""
-        You are a senior Python engineer.
-        Generate a Google-style docstring for this Python function. 
-        Follow this exact structure:
-        1. A one-line summary.
-        2. An 'Args:' section listing each parameter with its type and purpose.
-        3. A 'Returns:' section describing the return value and type.
-        4. A 'Raises:' section if the code explicitly raises an exception.
-        
-        - Do not include sections with no content
-        - Never include "Raises: None"
-        - Avoid obvious descriptions
-        
-        Return ONLY the docstring text, starting and ending with triple double-quotes (\"\"\").
-        """
-        response = requests.post(
-            f"{self.url}/api/chat",
-            json={
-                "model": self.model,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": SYSTEM_PROMPT
-                    },
-                    {
-                        "role": "user",
-                        "content": function_code
-                    }
-                ],
-                "stream": False,
-                "options": {
-                    "temperature": 0.1,
-                    "num_predict": 250
-                }
-            },
-            timeout=90,
-        )
-
-
-        response.raise_for_status()
-
-        cleaned = self.clean_output(response.json()["message"]["content"])
-
-        cleaned = cleaned.removeprefix('"""')
-        cleaned = cleaned.removesuffix('"""')
-
-        return cleaned.strip()
-
-    @staticmethod
-    def clean_output(text: str) -> str:
-        text = re.sub(r'<(thinking|thought)>.*?</\1>', '', text, flags=re.DOTALL)
-        text = text.replace("```python", "").replace("```", "")
-        return text.strip()
-
-
 class DocstringAdder(ast.NodeTransformer):
 
     def __init__(
         self,
-        llm_client: OllamaClient,
+        llm_client: LLMClient,
         overwrite_existing: bool = False,
         skip_private: bool = True,
     ):
@@ -170,7 +109,7 @@ def find_python_files(root_path: Path):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Automatically generate Python docstrings using Ollama."
+        description="Automatically generate Python docstrings using an LLM."
     )
 
     parser.add_argument(
@@ -178,17 +117,29 @@ def main():
         required=True,
         help="Root folder path of the Python project."
     )
+    
+    parser.add_argument(
+        "--provider",
+        choices=["ollama", "openai", "groq"],
+        default="ollama",
+        help="LLM provider to use (default: ollama)"
+    )
 
     parser.add_argument(
         "--model",
         default="qwen2.5-coder",
-        help="Ollama model name (default: qwen2.5-coder)"
+        help="Model name (default for ollama: qwen2.5-coder, default for openai: gpt-4o, default for groq: llama3-8b-8192)"
     )
 
     parser.add_argument(
         "--url",
         default="http://localhost:11434",
-        help="Ollama API URL"
+        help="API URL (default for ollama: http://localhost:11434)"
+    )
+    
+    parser.add_argument(
+        "--api-key",
+        help="API key for cloud providers (e.g., OpenAI). Can also use environment variables like OPENAI_API_KEY."
     )
 
     parser.add_argument(
@@ -211,10 +162,26 @@ def main():
         print("Provided path does not exist.")
         return
 
-    llm_client = OllamaClient(
-        model=args.model,
-        url=args.url,
-    )
+    if args.provider == "ollama":
+        llm_client = OllamaClient(
+            model=args.model,
+            url=args.url,
+        )
+    elif args.provider == "openai":
+        # Adjust defaults if the user didn't override them but switched to openai
+        model = "gpt-4o" if args.model == "qwen2.5-coder" else args.model
+        url = None if args.url == "http://localhost:11434" else args.url
+        llm_client = OpenAIClient(
+            model=model,
+            api_key=args.api_key,
+            base_url=url,
+        )
+    elif args.provider == "groq":
+        model = "llama3-8b-8192" if args.model == "qwen2.5-coder" else args.model
+        llm_client = GroqClient(
+            model=model,
+            api_key=args.api_key,
+        )
 
     transformer = DocstringAdder(
         llm_client=llm_client,

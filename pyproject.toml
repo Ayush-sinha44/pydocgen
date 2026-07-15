@@ -19,3 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
 ]
+
+[project.optional-dependencies]
+openai = ["openai>=1.0.0"]
+groq = ["groq>=0.4.0"]
