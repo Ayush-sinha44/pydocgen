@@ -62,6 +62,16 @@ class DocstringAdder(ast.NodeTransformer):
 
             docstring = self.llm_client.generate_docstring(function_code)
 
+            # Remove existing docstring before inserting the new one
+            # to prevent duplicate stacked docstrings when --overwrite is used.
+            if (
+                node.body
+                and isinstance(node.body[0], ast.Expr)
+                and isinstance(node.body[0].value, ast.Constant)
+                and isinstance(node.body[0].value.value, str)
+            ):
+                node.body.pop(0)
+
             node.body.insert(0, ast.Expr(value=ast.Constant(value=docstring)))
             self.changed = True
 
