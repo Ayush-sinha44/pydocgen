@@ -214,11 +214,9 @@ def main():
                 base_url=args.url,  # None is fine here — Groq SDK uses its own default
             )
     except ImportError as e:
-        print(f"Error: {e}")
-        return
+        raise SystemExit(f"Error: {e}")
     except Exception as e:
-        print(f"Error: Failed to initialize the {args.provider} client: {e}")
-        return
+        raise SystemExit(f"Error: Failed to initialize the {args.provider} client: {e}")
 
     transformer = DocstringAdder(
         llm_client=llm_client,
